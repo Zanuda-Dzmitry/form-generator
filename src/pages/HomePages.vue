@@ -2,7 +2,6 @@
   <div class="form-page">
     <h1>Регистрация</h1>
     <FormGenerator
-      v-model="formData"
       :fields="fields"
       submit-text="Зарегистрироваться"
       cancel-text="Отмена"
@@ -13,7 +12,7 @@
         <div class="custom-field">
           <label>{{ field.label }} <span class="required-mark">*</span></label>
           <input
-            v-model="formData[field.name]"
+            v-model="formStore.formData[field.name]"
             :type="showPassword ? 'text' : 'password'"
             :placeholder="field.placeholder"
             required
@@ -33,18 +32,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import FormGenerator from "@/components/FormGenerator.vue";
-import type { FormField, FormData } from "../types";
+import { useFormStore } from "@/stores/formStore";
+import type { FormField } from "../types";
 
 const showPassword = ref(false);
-
-const formData = ref<FormData>({
-  username: "",
-  email: "",
-  password: "",
-  agree: false,
-});
+const formStore = useFormStore();
 
 const fields: FormField[] = [
   {
@@ -81,14 +75,17 @@ const fields: FormField[] = [
   },
 ];
 
-const handleSubmit = (data: Record<string, any>) => {
-  alert(`Регистрация:  ${JSON.stringify(data)}`);
-  // Отправка данных на сервер
+onMounted(() => {
+  formStore.initializeForm(fields);
+});
+
+const handleSubmit = () => {
+  alert(`Регистрация: ${JSON.stringify(formStore.formData)}`);
 };
 
 const handleCancel = () => {
   alert("Отмена регистрации");
-  // Возврат на предыдущую страницу
+  formStore.resetForm();
 };
 </script>
 

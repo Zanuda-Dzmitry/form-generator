@@ -2,7 +2,6 @@
   <div class="form-page">
     <h1>Обратная связь</h1>
     <FormGenerator
-      v-model="formData"
       :fields="fields"
       submit-text="Отправить"
       @submit="handleSubmit"
@@ -17,17 +16,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted } from "vue";
 import FormGenerator from "@/components/FormGenerator.vue";
-import type { FormField, FormData } from "../types";
+import { useFormStore } from "@/stores/formStore";
+import type { FormField } from "../types";
 
-const formData = ref<FormData>({
-  name: "",
-  email: "",
-  topic: "",
-  message: "",
-  rating: 5,
-});
+const formStore = useFormStore();
 
 const fields: FormField[] = [
   {
@@ -78,9 +72,12 @@ const fields: FormField[] = [
   },
 ];
 
-const handleSubmit = (data: Record<string, any>) => {
-  alert(`Отправка обратной связи:  ${JSON.stringify(data)}`);
-  // Отправка данных на сервер
+onMounted(() => {
+  formStore.initializeForm(fields);
+});
+
+const handleSubmit = () => {
+  alert(`Отправка обратной связи: ${JSON.stringify(formStore.formData)}`);
 };
 </script>
 

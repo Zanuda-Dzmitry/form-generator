@@ -1,10 +1,10 @@
 <template>
   <form @submit.prevent="handleSubmit" class="form-generator">
-    <div v-for="(field, index) in fields" :key="index" class="form-field">
+    <div v-for="(field, index) in store.fields" :key="index" class="form-field">
       <!-- Слот для кастомизации поля -->
       <slot
         :name="`field-${field.name}`"
-        v-bind="{ field, value: formData[field.name] }"
+        v-bind="{ field, value: store.formData[field.name] }"
       >
         <!-- Стандартные поля -->
         <label v-if="field.type !== 'checkbox'" class="field-label">
@@ -20,7 +20,7 @@
             field.type === 'password' ||
             field.type === 'number'
           "
-          v-model="formData[field.name]"
+          v-model="store.formData[field.name]"
           :type="field.type"
           :placeholder="field.placeholder"
           :required="field.required"
@@ -31,7 +31,7 @@
         <!-- Textarea -->
         <textarea
           v-else-if="field.type === 'textarea'"
-          v-model="formData[field.name]"
+          v-model="store.formData[field.name]"
           :placeholder="field.placeholder"
           :required="field.required"
           :disabled="field.disabled"
@@ -42,7 +42,7 @@
         <!-- Select -->
         <select
           v-else-if="field.type === 'select'"
-          v-model="formData[field.name]"
+          v-model="store.formData[field.name]"
           :required="field.required"
           :disabled="field.disabled"
           class="field-select"
@@ -60,7 +60,7 @@
         <label v-else-if="field.type === 'checkbox'" class="checkbox-label">
           <input
             type="checkbox"
-            v-model="formData[field.name]"
+            v-model="store.formData[field.name]"
             :disabled="field.disabled"
             class="field-checkbox"
           />
@@ -68,25 +68,29 @@
         </label>
 
         <!-- Ошибки валидации -->
-        <span v-if="errors[field.name]" class="error-message">
-          {{ errors[field.name] }}
+        <span v-if="store.errors[field.name]" class="error-message">
+          {{ store.errors[field.name] }}
         </span>
       </slot>
     </div>
 
     <!-- Кнопки формы -->
     <div class="form-actions">
-      <slot name="actions" v-bind="{ submitting: submitting }">
+      <slot name="actions" v-bind="{ submitting: store.submitting }">
         <button
           type="button"
           @click="handleCancel"
           class="cancel-button"
-          :disabled="submitting"
+          :disabled="store.submitting"
         >
-          {{ cancelText }}
+          {{ store.cancelText }}
         </button>
-        <button type="submit" class="submit-button" :disabled="submitting">
-          {{ submitting ? submittingText : submitText }}
+        <button
+          type="submit"
+          class="submit-button"
+          :disabled="store.submitting"
+        >
+          {{ store.submitting ? store.submittingText : store.submitText }}
         </button>
       </slot>
     </div>
@@ -94,98 +98,43 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, type PropType } from "vue";
+import { watch, onMounted } from "vue";
+import { useFormStore } from "@/stores/formStore";
+import type { FormField } from "../types";
 
-import type { FormField, FormData } from "../types";
+const props = defineProps<{
+  fields: FormField[];
+  submitText?: string;
+  cancelText?: string;
+  submittingText?: string;
+  validateOnChange?: boolean;
+}>();
 
-// Пропсы компонента
-const props = defineProps({
-  fields: {
-    type: Array as PropType<FormField[]>,
-    required: true,
-    validator: (value: FormField[]) =>
-      value.every((field) => "name" in field && "type" in field),
-  },
-  modelValue: {
-    type: Object as PropType<Record<string, any>>,
-    required: true,
-  },
-  submitText: {
-    type: String,
-    default: "Сохранить",
-  },
-  cancelText: {
-    type: String,
-    default: "Отмена",
-  },
-  submittingText: {
-    type: String,
-    default: "Сохранение...",
-  },
-  validateOnChange: {
-    type: Boolean,
-    default: false,
-  },
-});
-
-// Эмиты
 const emit = defineEmits<{
-  (e: "update:modelValue", value: Record<string, any>): void;
   (e: "submit", value: Record<string, any>): void;
   (e: "cancel"): void;
   (e: "field-change", payload: { field: string; value: any }): void;
 }>();
 
-// Состояние формы
-const formData = computed({
-  get: () => props.modelValue,
-  set: (value) => emit("update:modelValue", value),
-});
-const errors = ref<Record<string, string>>({});
-const submitting = ref(false);
+const store = useFormStore();
 
 // Инициализация формы
-props.fields.forEach((field) => {
-  if (!(field.name in formData.value)) {
-    formData.value[field.name] = field.type === "checkbox" ? false : "";
-  }
+onMounted(() => {
+  store.initializeForm(props.fields);
+  if (props.submitText) store.submitText = props.submitText;
+  if (props.cancelText) store.cancelText = props.cancelText;
+  if (props.submittingText) store.submittingText = props.submittingText;
+  if (props.validateOnChange) store.validateOnChange = props.validateOnChange;
 });
 
-// Валидация поля
-const validateField = (fieldName: string) => {
-  const field = props.fields.find((f) => f.name === fieldName);
-  if (!field || !field.validation) return true;
-
-  const result = field.validation(formData.value[fieldName]);
-  if (typeof result === "string") {
-    errors.value[fieldName] = result;
-    return false;
-  }
-
-  delete errors.value[fieldName];
-  return result;
-};
-
-// Валидация всей формы
-const validateForm = () => {
-  let isValid = true;
-  props.fields.forEach((field) => {
-    if (field.validation) {
-      const fieldValid = validateField(field.name);
-      if (!fieldValid) isValid = false;
-    }
-  });
-  return isValid;
-};
-
 const handleSubmit = async () => {
-  if (!validateForm()) return;
+  if (!store.validateForm()) return;
 
-  submitting.value = true;
+  store.submitting = true;
   try {
-    emit("submit", formData.value);
+    emit("submit", store.formData);
   } finally {
-    submitting.value = false;
+    store.submitting = false;
   }
 };
 
@@ -193,17 +142,22 @@ const handleCancel = () => {
   emit("cancel");
 };
 
-// Следим за изменениями modelValue извне
+// Следим за изменениями полей формы
 watch(
-  formData,
+  () => store.formData,
   (newValue) => {
-    emit("update:modelValue", newValue);
+    if (store.validateOnChange) {
+      Object.keys(newValue).forEach((fieldName) => {
+        store.validateField(fieldName);
+      });
+    }
   },
   { deep: true }
 );
 </script>
 
 <style lang="scss" scoped>
+/* Стили остаются такими же, как в оригинальном компоненте */
 .form-generator {
   display: flex;
   flex-direction: column;
