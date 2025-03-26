@@ -82,12 +82,12 @@ const fields: FormField[] = [
 ];
 
 const handleSubmit = (data: Record<string, any>) => {
-  console.log("Регистрация:", data);
+  alert(`Регистрация:  ${JSON.stringify(data)}`);
   // Отправка данных на сервер
 };
 
 const handleCancel = () => {
-  console.log("Отмена регистрации");
+  alert("Отмена регистрации");
   // Возврат на предыдущую страницу
 };
 </script>

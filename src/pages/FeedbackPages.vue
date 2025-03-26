@@ -79,7 +79,7 @@ const fields: FormField[] = [
 ];
 
 const handleSubmit = (data: Record<string, any>) => {
-  console.log("Отправка обратной связи:", data);
+  alert(`Отправка обратной связи:  ${JSON.stringify(data)}`);
   // Отправка данных на сервер
 };
 </script>
